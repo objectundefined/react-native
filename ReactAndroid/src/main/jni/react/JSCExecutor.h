@@ -58,8 +58,8 @@ public:
     const std::string& startupCode,
     const std::string& sourceURL) override;
   virtual void callFunction(
-    const double moduleId,
-    const double methodId,
+    const std::string& moduleId,
+    const std::string& methodId,
     const folly::dynamic& arguments) override;
   virtual void invokeCallback(
     const double callbackId,
@@ -113,6 +113,7 @@ private:
   void receiveMessageFromOwner(const std::string &msgString);
   void terminateOwnedWebWorker(int worker);
   Object createMessageObject(const std::string& msgData);
+  bool usePreparsingAndStringRef();
 
   static JSValueRef nativeStartWorker(
       JSContextRef ctx,

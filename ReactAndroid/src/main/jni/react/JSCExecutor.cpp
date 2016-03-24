@@ -40,6 +40,10 @@ using fbsystrace::FbSystraceSection;
 #include <jsc_config_android.h>
 #endif
 
+#ifdef JSC_HAS_PERF_STATS_API
+#include "JSCPerfStats.h"
+#endif
+
 static const int64_t NANOSECONDS_IN_SECOND = 1000000000LL;
 static const int64_t NANOSECONDS_IN_MILLISECOND = 1000000LL;
 
@@ -179,6 +183,10 @@ void JSCExecutor::initOnJSVMThread() {
   #ifdef WITH_FB_MEMORY_PROFILING
   addNativeMemoryHooks(m_context);
   #endif
+
+  #ifdef JSC_HAS_PERF_STATS_API
+  addJSCPerfStatsHooks(m_context);
+  #endif
 }
 
 void JSCExecutor::terminateOnJSVMThread() {
@@ -197,11 +205,29 @@ void JSCExecutor::terminateOnJSVMThread() {
   m_context = nullptr;
 }
 
+// Checks if the user is in the pre-parsing cache & StringRef QE.
+// Should be removed when these features are no longer gated.
+bool JSCExecutor::usePreparsingAndStringRef(){
+  return m_jscConfig.getDefault("PreparsingStringRef", true).getBool();
+}
+
 void JSCExecutor::loadApplicationScript(
     const std::string& script,
     const std::string& sourceURL) {
   ReactMarker::logMarker("loadApplicationScript_startStringConvert");
+#if WITH_FBJSCEXTENSIONS
+  JSStringRef jsScriptRef;
+  if (usePreparsingAndStringRef()){
+    jsScriptRef = JSStringCreateWithUTF8CStringExpectAscii(script.c_str(), script.size());
+  } else {
+    jsScriptRef = JSStringCreateWithUTF8CString(script.c_str());
+  }
+
+  String jsScript = String::adopt(jsScriptRef);
+#else
   String jsScript = String::createExpectingAscii(script);
+#endif
+  
   ReactMarker::logMarker("loadApplicationScript_endStringConvert");
 
   String jsSourceURL(sourceURL.c_str());
@@ -209,7 +235,7 @@ void JSCExecutor::loadApplicationScript(
   FbSystraceSection s(TRACE_TAG_REACT_CXX_BRIDGE, "JSCExecutor::loadApplicationScript",
     "sourceURL", sourceURL);
   #endif
-  if (!jsSourceURL) {
+  if (!jsSourceURL || !usePreparsingAndStringRef()) {
     evaluateScript(m_context, jsScript, jsSourceURL);
   } else {
     // If we're evaluating a script, get the device's cache dir
@@ -236,11 +262,11 @@ void JSCExecutor::flush() {
   m_bridge->callNativeModules(*this, calls, true);
 }
 
-void JSCExecutor::callFunction(const double moduleId, const double methodId, const folly::dynamic& arguments) {
+void JSCExecutor::callFunction(const std::string& moduleId, const std::string& methodId, const folly::dynamic& arguments) {
   // TODO:  Make this a first class function instead of evaling. #9317773
   std::vector<folly::dynamic> call{
-    (double) moduleId,
-    (double) methodId,
+    moduleId,
+    methodId,
     std::move(arguments),
   };
   std::string calls = executeJSCallWithJSC(m_context, "callFunctionReturnFlushedQueue", std::move(call));
