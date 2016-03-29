@@ -33,9 +33,9 @@ class RouteNode {
 }
 
 var StackDiffRecord = immutable.Record({
-  key: null,
-  route: null,
-  index: null,
+  key: (null:?any),
+  route: (null:?any),
+  index: (null:?any),
 });
 
 /**
@@ -76,6 +76,7 @@ class RouteStack {
     var ii = 0;
     var nodes = this._routeNodes;
     while (ii < nodes.size) {
+      //$FlowFixMe
       result.push(nodes.get(ii).value);
       ii++;
     }
@@ -86,6 +87,7 @@ class RouteStack {
     if (index < 0 || index > this._routeNodes.size - 1) {
       return null;
     }
+    //$FlowFixMe
     return this._routeNodes.get(index).value;
   }
 
@@ -101,6 +103,7 @@ class RouteStack {
     }
     var index = this.indexOf(route);
     return index > -1 ?
+      //$FlowFixMe
       this._routeNodes.get(index).key :
       null;
   }
@@ -117,7 +120,7 @@ class RouteStack {
     return this._routeNodes.findIndex(finder, this);
   }
 
-  slice(begin: ?number, end: ?number): RouteStack {
+  slice(begin?: number, end?: number): RouteStack {
     var routeNodes = this._routeNodes.slice(begin, end);
     var index = Math.min(this._index, routeNodes.size - 1);
     return this._update(index, routeNodes);
@@ -201,6 +204,7 @@ class RouteStack {
     var ii = 0;
     var nodes = this._routeNodes;
     while (ii < nodes.size) {
+      //$FlowFixMe
       var node = nodes.get(ii);
       callback.call(context, node.value, ii, node.key);
       ii++;
